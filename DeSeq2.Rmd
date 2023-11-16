@@ -1,0 +1,432 @@
+#Running DeSeq2 for diff gene exp
+
+#Load libraries
+```{r}
+library(scater)
+library(Seurat)
+library(cowplot)
+library(Matrix.utils)
+library(edgeR)
+library(dplyr)
+library(magrittr)
+library(Matrix)
+library(purrr)
+library(reshape2)
+library(S4Vectors)
+library(tibble)
+library(SingleCellExperiment)
+library(pheatmap)
+library(apeglm)
+library(png)
+library(DESeq2)
+library(RColorBrewer)
+library(Seurat)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(circlize)
+library(readr)
+library(enrichR)
+library(lme4)
+library(lmerTest)
+library(philentropy)
+library(ggplot2)
+library(circlize)
+library(ComplexHeatmap)
+library(dendextend)
+```
+
+
+```{r}
+#Import gene-filtered cell-type seurat object add meta
+seurat <- readRDS("/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/CA1_nofilter.rds")
+
+#Add meta and subset for exposure vs condition/time
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC1')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC1')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC1')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC1')]<-"32"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC1')]<-"A"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC1')]<-"Con1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC1')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC1')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC1')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC1')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC1')]<-"31"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC1')]<-"A"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC1')]<-"Ucon1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC1')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC2')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC2')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC2')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC2')]<-"33"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC2')]<-"B"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC2')]<-"Con0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC2')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC2')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC2')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC2')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC2')]<-"34"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC2')]<-"B"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC2')]<-"Ucon0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC2')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('NC2')]<-"Naive"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('NC2')]<-"Base"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('NC2')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('NC2')]<-"30"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('NC2')]<-"A"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('NC2')]<-"Naive"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC3')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC3')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC3')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC3')]<-"30"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC3')]<-"C"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC3')]<-"Con1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC3')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC3')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC3')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC3')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC3')]<-"31"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC3')]<-"C"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC3')]<-"Ucon1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC3')]<-"Exposed"
+
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('NC3')]<-"Base"
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('NC3')]<-"Naive"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('NC3')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('NC3')]<-"32"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('NC3')]<-"C"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('NC3')]<-"Naive"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC4')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC4')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC4')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC4')]<-"44"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC4')]<-"D"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC4')]<-"Con0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC4')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC4')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC4')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC4')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC4')]<-"43"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC4')]<-"D"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC4')]<-"Ucon0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC4')]<-"Exposed"
+
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('NC4')]<-"Base"
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('NC4')]<-"Naive"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('NC4')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('NC4')]<-"33"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('NC4')]<-"E"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('NC4')]<-"Naive"
+
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC5')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC5')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC5')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC5')]<-"45"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC5')]<-"D"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC5')]<-"Con1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC5')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC5')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC5')]<-"1hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC5')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC5')]<-"32"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC5')]<-"E"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC5')]<-"Ucon1"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC5')]<-"Exposed"
+
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('NC5')]<-"Base"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('NC5')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('NC5')]<-"31"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('NC5')]<-"F"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('NC5')]<-"Naive"
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('NC5')]<-"Naive"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('FC6')]<-"Conditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('FC6')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('FC6')]<-"Male"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('FC6')]<-"30"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('FC6')]<-"F"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('FC6')]<-"Con0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('FC6')]<-"Exposed"
+
+seurat@meta.data$condition[seurat@meta.data$orig.ident==c('UC6')]<-"Unconditioned"
+seurat@meta.data$time[seurat@meta.data$orig.ident==c('UC6')]<-"0hr"
+seurat@meta.data$sex[seurat@meta.data$orig.ident==c('UC6')]<-"Female"
+seurat@meta.data$age[seurat@meta.data$orig.ident==c('UC6')]<-"32"
+seurat@meta.data$batch[seurat@meta.data$orig.ident==c('UC6')]<-"F"
+seurat@meta.data$condition_time[seurat@meta.data$orig.ident==c('UC6')]<-"Ucon0"
+seurat@meta.data$exposure[seurat@meta.data$orig.ident==c('UC6')]<-"Exposed"
+```
+
+#Make se and run deseq for exposure-induced changes in gene expression
+```{r}
+gene_se <- SummarizedExperiment(as.matrix(seurat@assays$RNA@counts),colData = seurat@meta.data)
+
+gene_dds <- DESeqDataSet(gene_se, design = ~ batch + exposure)
+
+gene_dds <- DESeq(gene_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch)
+
+saveRDS(gene_dds, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq_genes_exposure.rds')
+gene_res_LRT <- results(gene_dds)
+gene_sig_res_LRT <- gene_res_LRT %>%
+              data.frame() %>%
+              rownames_to_column(var="gene") %>% 
+              as_tibble() %>% 
+              filter(padj < .1)
+saveRDS(gene_sig_res_LRT, '/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq2_genes_exposure.rds')
+```
+
+
+#ok what do the results look like if we try to model them without DeSeq2 fitting
+```{r}
+#Just scale to avg UMIs/cell, don't norm (stored in data slot)
+scalef <- mean(seurat@meta.data[["nCount_RNA"]])
+exposure <- NormalizeData(seurat, normalization.method = "RC", scale.factor=scalef)
+```
+
+```{r}
+exp_genes <- vector()
+p_vals <- vector()
+estimates <- vector()
+#for (gene in rownames(seurat)){
+#Set up obs x variables matrix (cells x meta)
+horses <- as.data.frame(seurat@meta.data)
+horses$cell <- rownames(horses)
+
+counts <- GetAssayData(object = seurat, slot = "counts")
+subset <- as.matrix(counts['Ywhaz',])
+
+
+
+horses$counts <- as.vector(subset[,1])
+
+#horses$scaled <- scale(horses$nCount_RNA)
+
+
+model <- glmer.nb(counts ~ exposure +(1|batch), data=horses)
+
+#This is pretty consistent with Deseq2 but Deseq2 does put more care into gene-wise disp 
+#estimates so let's move forwward with deseq2 for experience-induced genes 
+```
+
+
+#Subset to UC and FC
+```{r}
+seurat <- subset(seurat, subset = exposure == 'Naive', invert=TRUE)
+
+#Run deseq for condition-induced changes in gene expression
+gene_se <- SummarizedExperiment(as.matrix(seurat@assays$RNA@counts),colData = seurat@meta.data)
+
+gene_dds <- DESeqDataSet(gene_se, design = ~ batch+sex+condition)
+
+gene_dds <- DESeq(gene_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch+sex)
+
+saveRDS(gene_dds, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq_genes_condition.rds')
+
+#Run deseq for time-induced changes in gene expression
+gene_dds <- DESeqDataSet(gene_se, design = ~ batch+sex+time)
+
+gene_dds <- DESeq(gene_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch+sex)
+
+saveRDS(gene_dds, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq_genes_time.rds')
+```
+
+#####for raw isoform exp
+#Import count/tx/cell matrix and add meta
+```{r}
+#Import per-cell isoform counts from raw salmon
+seurat_dir="/Seurat_Input"
+home_dir<-"/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/novelisoforms/finalfastas/"
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+for (item in samples){
+  data_dir <- paste(home_dir, item, seurat_dir, sep = "")
+  expressionmatrix <-Read10X(data.dir = data_dir)
+  assign(item, CreateSeuratObject(counts = expressionmatrix, project = item))}
+
+#Merge sample datasets into one large Seurat object
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+isoform.combined <- merge(FC1, y = c(UC1,FC2,UC2,NC2,FC3,UC3,NC3,FC4,UC4,NC4,FC5,UC5,NC5,FC6,UC6), add.cell.ids = samples, project = "isoformcombined")
+
+#Add meta and subset for exposure vs condition/time
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC1')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC1')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC1')]<-"A"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC1')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC1')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC1')]<-"A"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC2')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC2')]<-"33"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC2')]<-"B"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC2')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC2')]<-"34"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC2')]<-"B"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Naive"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Base"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC2')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC2')]<-"A"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC3')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC3')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC3')]<-"C"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC3')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC3')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC3')]<-"C"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Base"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Naive"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC3')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC3')]<-"C"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC4')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC4')]<-"44"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC4')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC4')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC4')]<-"43"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC4')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Base"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Naive"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC4')]<-"33"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC4')]<-"E"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Naive"
+
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC5')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC5')]<-"45"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC5')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC5')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC5')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC5')]<-"E"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Base"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC5')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC5')]<-"F"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Naive"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC6')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC6')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC6')]<-"F"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC6')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC6')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC6')]<-"F"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Exposed"
+
+exposure <- isoform.combined
+condition_time <- subset(isoform.combined, subset = exposure == 'Naive', invert=TRUE)
+```
+
+#Make se and run deseq for exposure-induced changes in isoform expression
+```{r}
+tx_se <- SummarizedExperiment(as.matrix(exposure@assays$RNA@counts),colData = exposure@meta.data)
+
+#pseduo +1 to first row just to get deseq2 to be quiet
+for (cell in colnames(exposure)){
+  tx_se@assays@data@listData[[1]][1,cell] <- (tx_se@assays@data@listData[[1]][1,cell])+1
+}
+
+tx_dds <- DESeqDataSet(tx_se, design = ~ batch+sex+exposure)
+
+tx_dds <- DESeq(tx_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch+sex)
+
+saveRDS(tx_dds, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq_tx_exposure.rds')
+tx_res_LRT <- results(tx_dds)
+tx_sig_res_LRT <- tx_res_LRT %>%
+              data.frame() %>%
+              rownames_to_column(var="gene") %>% 
+              as_tibble() %>% 
+              filter(padj < .1)
+```
+
+#Make se and run deseq for condition-induced changes in isoform expression
+```{r}
+tx_se <- SummarizedExperiment(as.matrix(condition_time@assays$RNA@counts),colData = condition_time@meta.data)
+
+#pseduo +1 to first row just to get deseq2 to be quiet
+for (cell in colnames(condition_time)){
+  tx_se@assays@data@listData[[1]][1,cell] <- (tx_se@assays@data@listData[[1]][1,cell])+1
+}
+
+tx_dds <- DESeqDataSet(tx_se, design = ~ batch+sex+condition)
+
+tx_dds <- DESeq(tx_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch+sex)
+
+saveRDS(tx_dds, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/Deseq_tx_condition.rds')
+tx_res_LRT <- results(tx_dds)
+tx_sig_res_LRT <- tx_res_LRT %>%
+              data.frame() %>%
+              rownames_to_column(var="gene") %>% 
+              as_tibble() %>% 
+              filter(padj < .1)
+```
