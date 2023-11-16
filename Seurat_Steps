@@ -1,0 +1,109 @@
+#R notebook documenting analysis steps for single cell gene expression analysis with Seurat
+#Load libraries 
+```{r}
+library(Seurat)
+library(ggplot2)
+```
+
+#Import data (need matrix.mtx.gz, features.tsv.gz, barcodes.tsv.gz for each sample)
+```{r}
+seurat_dir="/Seurat_Input"
+home_dir<-"/scratch/sherbear/"
+samples <-list("FC1","UC1","NC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+for (item in samples){
+  data_dir <- paste(home_dir, item, seurat_dir, sep = "")
+  expressionmatrix <-Read10X(data.dir = data_dir)
+  assign(item,CreateSeuratObject(counts = expressionmatrix, project = item))}
+```
+#Merge sample datasets into one large Seurat object
+```{r}
+samples <-list("FC1","UC1","NC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+R2C2.combined <- merge(FC1, y = c(UC1,NC1,FC2,UC2,NC2,FC3,UC3,NC3,FC4,UC4,NC4,FC5,UC5,NC5,FC6,UC6), add.cell.ids = samples, project = "R2C2combined")
+```
+#Apply inclusion criteria to all cells in the marged object
+```{r}
+#interrogate percentage of mitochondrial reads/cell, make new data column
+R2C2.combined[["percent.mt"]] <- PercentageFeatureSet(R2C2.combined, pattern = "mt-")
+#Make new data column for Genes/UMI
+R2C2.combined$GenesPerUMI <- R2C2.combined$nFeature_RNA / R2C2.combined$nCount_RNA
+metadata <- R2C2.combined@meta.data
+#Subset cells by those that pass QC metrics, this is the new Seurat Object
+cellfilteredcombined <- subset(R2C2.combined, subset = nCount_RNA > 700 & percent.mt < 20 & GenesPerUMI > .4 & GenesPerUMI < .8)
+```
+#Perform gene-level filtering 
+```{r}
+counts <- GetAssayData(object = cellfilteredcombined, slot = "counts")
+nonzero <- counts > 0
+keep_genes <- Matrix::rowSums(nonzero) >= 10
+filtered_counts <- counts[keep_genes, ]
+cellfilteredcombined <- CreateSeuratObject(filtered_counts, meta.data = cellfilteredcombined@meta.data)
+```
+#Normalize gene counts and use dispersion estimates to calculate most variable features
+```{r}
+cellfilteredcombined <- NormalizeData(cellfilteredcombined)
+cellfilteredcombined <- FindVariableFeatures(cellfilteredcombined, selection.method ="mean.var.plot",  mean.cutoff = c(0.0125, 3),dispersion.cutoff = c(0.5, Inf))
+```
+#Scale data and run PCA with respect to variable features
+```{r}
+all.genes <- rownames(cellfilteredcombined)
+cellfilteredcombined <- ScaleData(cellfilteredcombined, features = all.genes, vars.to.regress = "percent.mt")
+cellfilteredcombined <- RunPCA(cellfilteredcombined, features = VariableFeatures(object = cellfilteredcombined))
+```
+#Cluster with top 30 PCs and represent with tSNE
+```{r}
+cellfilteredcombined <- FindNeighbors(cellfilteredcombined, dims = 1:30)
+cellfilteredcombined <- FindClusters(cellfilteredcombined, resolution = 0.6)
+cellfilteredcombined <- RunTSNE(cellfilteredcombined, dims=1:30)
+```
+#Visualize tSNE
+```{r}
+tsne1 <- DimPlot(cellfilteredcombined, reduction = "tsne")+NoLegend()
+tsne1
+```
+#Find expression markers that define each cluster for cell assignment
+#Put these in a supplementary tsv/excel file
+```{r}
+clusters<-list(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23)
+for (cluster in clusters){
+  name <- paste('cluster',cluster,'.markers',sep="")
+  assign(name,FindMarkers(cellfilteredcombined, ident.1 = cluster))
+}
+```
+#Assign cluster IDs !!TSNE CHANGES EVERY TIME!!
+```{r}
+new.cluster.ids <- c('Dentate 1','Oligo. 1','Neuroblast','Astrocyte','Dentate 2','Microglia 1','CA1','Dentate 3','Endothelial 1','Gliaform','CA2','Oligo. 2','Progenitor 1','Pericyte 1','Inhibitory','Progenitor 2','CA3','Unassigned 1','Pericyte 2','Unassigned 2','Microglia 2','Unassigned 3','Oligo. 3','Oligo. 4')
+names(new.cluster.ids) <- levels(cellfilteredcombined)
+cellfilteredcombined <- RenameIdents(cellfilteredcombined, new.cluster.ids)
+```
+#She lookin' good
+```{r}
+TSNE <- DimPlot(cellfilteredcombined, reduction = "tsne", label = TRUE) + NoLegend()
+TSNE
+```
+#Get an ideal of avg UMIs/cell and genes/cell
+```{r}
+UMIscells <- mean (cellfilteredcombined@meta.data[["nCount_RNA"]])
+Genescells <- mean (cellfilteredcombined@meta.data[["nFeature_RNA"]])
+#19763 cells
+#2406 UMIs/cell
+#1353 genes/cell
+```
+
+#Save seurat object as rdata file for use in DeSeq2
+```{r}
+saveRDS(cellfilteredcombined, "R2C2_combined_final.rds")
+```
+
+##Update: after looking at DeSeq2, NC1 sample is an obvious outlier--for simplicity sake let's just subset and merge all the other samples into one dataset
+```{r}
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+for (item in samples){
+  assign(item, subset(x = cellfilteredcombined, subset = orig.ident == item))}
+```
+#Merge them together and save
+```{r}
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+NC1excluded <- merge(FC1, y = c(UC1,FC2,UC2,NC2,FC3,UC3,NC3,FC4,UC4,NC4,FC5,UC5,NC5,FC6,UC6), add.cell.ids = samples, project = "NC1excluded")
+
+saveRDS(NC1excluded, "NC1_excluded.rds")
+```
