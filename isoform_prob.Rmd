@@ -1,0 +1,660 @@
+#Looking at isoform probability data 
+```{r}
+library(sctransform)
+library(DESeq2)
+library(MASS)
+library(scater)
+library(Seurat)
+library(cowplot)
+library(Matrix.utils)
+library(dplyr)
+library(magrittr)
+library(Matrix)
+library(purrr)
+library(reshape2)
+library(S4Vectors)
+library(tibble)
+library(SingleCellExperiment)
+library(pheatmap)
+library(png)
+library(RColorBrewer)
+library(Seurat)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(circlize)
+library(readr)
+library(enrichR)
+library(lme4)
+library(lmerTest)
+library(philentropy)
+library(ggplot2)
+library(circlize)
+library(ComplexHeatmap)
+library(dendextend)
+library(glmmSeq)
+```
+
+```{r}
+#Import per-cell isoform counts from raw salmon
+seurat_dir="/Seurat_Input"
+home_dir<-"/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/novelisoforms/finalfastas/"
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+for (item in samples){
+  data_dir <- paste(home_dir, item, seurat_dir, sep = "")
+  expressionmatrix <-Read10X(data.dir = data_dir)
+  assign(item, CreateSeuratObject(counts = expressionmatrix, project = item))}
+
+#Merge sample datasets into one large Seurat object
+samples <-list("FC1","UC1","FC2","UC2","NC2","FC3","UC3","NC3","FC4","UC4","NC4","FC5","UC5","NC5","FC6","UC6")
+isoform.combined <- merge(FC1, y = c(UC1,FC2,UC2,NC2,FC3,UC3,NC3,FC4,UC4,NC4,FC5,UC5,NC5,FC6,UC6), add.cell.ids = samples, project = "isoformcombined")
+
+#Add meta and subset for condition and time analysis
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC1')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC1')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC1')]<-"A"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC1')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC1')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC1')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC1')]<-"A"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC1')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC2')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC2')]<-"33"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC2')]<-"B"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC2')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC2')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC2')]<-"34"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC2')]<-"B"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC2')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Naive"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Base"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC2')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC2')]<-"A"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC2')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC3')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC3')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC3')]<-"C"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC3')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC3')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC3')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC3')]<-"C"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC3')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Base"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Naive"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC3')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC3')]<-"C"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC3')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC4')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC4')]<-"44"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC4')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC4')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC4')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC4')]<-"43"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC4')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC4')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Base"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Naive"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC4')]<-"33"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC4')]<-"E"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC4')]<-"Naive"
+
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC5')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC5')]<-"45"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC5')]<-"D"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Con1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC5')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC5')]<-"1hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC5')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC5')]<-"E"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Ucon1"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC5')]<-"Exposed"
+
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Base"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('NC5')]<-"31"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('NC5')]<-"F"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Naive"
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('NC5')]<-"Naive"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Conditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('FC6')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Male"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('FC6')]<-"30"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('FC6')]<-"F"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Con0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('FC6')]<-"Exposed"
+
+isoform.combined@meta.data$condition[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Unconditioned"
+isoform.combined@meta.data$time[isoform.combined@meta.data$orig.ident==c('UC6')]<-"0hr"
+isoform.combined@meta.data$sex[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Female"
+isoform.combined@meta.data$age[isoform.combined@meta.data$orig.ident==c('UC6')]<-"32"
+isoform.combined@meta.data$batch[isoform.combined@meta.data$orig.ident==c('UC6')]<-"F"
+isoform.combined@meta.data$condition_time[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Ucon0"
+isoform.combined@meta.data$exposure[isoform.combined@meta.data$orig.ident==c('UC6')]<-"Exposed"
+
+isoform.combined@meta.data$type <-'CA1'
+
+#saveRDS(isoform.combined, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/novelisoforms/isoform_matrix.rds')
+
+#Set up seurat objs for LRT across exposure,time, and condition
+exposure <- isoform.combined 
+condition_time <- subset(isoform.combined, subset = exposure == 'Naive', invert=TRUE)
+```
+
+#Scale counts to avg UMI/cell and remove universally non-expressed transcripts
+```{r}
+#Just scale to avg UMIs/cell, don't norm (stored in data slot)
+scalef <- mean(exposure@meta.data[["nCount_RNA"]])
+exposure <- NormalizeData(exposure, normalization.method = "RC", scale.factor=scalef)
+
+#Remove transcripts that have counts of 0 across all cells
+counts <- GetAssayData(object = exposure, slot = "data")
+keep_tx <- Matrix::rowSums(counts) > 0
+filtered_counts <- counts[keep_tx, ]
+exposure <- CreateSeuratObject(filtered_counts, meta.data = exposure@meta.data)
+```
+
+#Pull in the annotes file to get tx:gene assignments for gene-level normalization
+```{r}
+annotes <- read_tsv('/atium/Data/projects/sheridansinglecell/ref_files/FLAIR_tx_annotes.tsv')
+
+#clean it up
+sorted <- annotes[order(annotes$Gene),]
+sorted <- sorted[sorted$Transcript%in%rownames(filtered_counts),]
+
+#ugh remove duplicates
+turkey <- vector() 
+for (tx in unique(sorted$Transcript)){
+  if (length(which(sorted$Transcript==tx) == 1)){
+      turkey <- append(turkey, tx)
+  }
+}
+sorted <- sorted[sorted$Transcript%in%turkey, ]
+
+#remove 1:1 features (genes and loci with one isoform -- gene and tx info is redundant here)
+poonga <- data.frame()
+poonga <- data.frame(unique(sorted$Transcript))
+so_annoying_fuck <- vector()
+for (tx in poonga$unique.sorted.Transcript.){
+      so_annoying_fuck <- append(so_annoying_fuck, sorted[sorted$Transcript==tx,'Gene'][[1]][1])
+}
+
+poonga$Gene <- so_annoying_fuck    
+sorted <- poonga
+sorted$Transcript <- poonga$unique.sorted.Transcript.
+keep <- vector() 
+for (gene in unique(sorted$Gene)){
+  if (length(sorted[sorted$Gene==gene,'Transcript']) > 1){
+      keep <- append(keep, gene)
+  }
+}
+sorted <- sorted[sorted$Gene%in%keep, ]
+#write_tsv(sorted,file='/atium/Data/projects/sheridansinglecell/ref_files/annotes_splicing.tsv')
+```
+
+#First let's just see if we can get DeSeq2 disp estimates from this without this whole computer exploding
+```{r}
+raw_exposure <- isoform.combined
+tx_se <- SummarizedExperiment(as.matrix(raw_exposure@assays$RNA@counts),colData = raw_exposure@meta.data)
+
+#pseduo +1 to first row just to get deseq2 to be quiet
+for (cell in colnames(raw_exposure)){
+  tx_se@assays@data@listData[[1]][1,cell] <- (tx_se@assays@data@listData[[1]][1,cell])+1
+}
+
+tx_dds <- DESeqDataSet(tx_se, design = ~ batch + exposure)
+
+tx_dds <- DESeq(tx_dds,fitType = "local",useT=TRUE,minmu=1e-6,minReplicatesForReplace=Inf,test="LRT",reduced=~batch)
+```
+
+#Let's look at the shape of the probability data
+```{r}
+tx_dds <- readRDS(file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/tx_CA1_dds.rds')
+```
+
+#Let's first look with just RC isoform counts
+```{r}
+isos <- vector()
+norm_counts <- vector()
+probs <- vector()
+vars <- vector()
+sd_probs <- vector()
+genes <- vector()
+
+#subsample 500 loci for supp figures
+for (gene in sample(unique(sorted$Gene), 500)){
+  genes <- append(genes, gene)
+
+    counts <- GetAssayData(object = exposure, slot = "data")
+    
+    texas <- sorted[sorted$Gene == gene, 'Transcript']
+    options(rownames.force = FALSE)
+    
+    # Only consider cells that express at this locus
+    texas_counts <- counts[texas, ]
+    sums <- colSums(texas_counts)
+    
+    cells <- names(sums[sums > 0])
+    subset <- as.matrix(counts[texas, cells])
+    
+    for (tx in texas) {
+      isos <- append(isos,tx)
+      norm_avg <- mean(subset[tx,])
+      norm_counts <- append(norm_counts,norm_avg)
+      var <- var(subset[tx,])
+      vars <- append(vars,var)
+    # make prob matrix
+    for (cell in colnames(subset)) {
+      # get column total (total counts per gene)
+      total <- sum(subset[, cell])
+      if (total > 0) {
+          subset[tx, cell] <- as.numeric((subset[tx, cell]) / total) # perform gene-level normalization/rel abundance
+          if (total == 0) {
+            subset[tx, cell] <- 0
+          }
+        }
+    }
+          boop <- mean(subset[tx, ])
+          probs <- append(probs,boop)
+          boop_sd <- var(subset[tx, ])
+          sd_probs <- append(sd_probs,boop_sd)
+    }}
+
+#cell jsd and ncount RNA
+ndf <- data.frame(norm_counts)
+rownames(ndf) <- isos
+ndf$sd_probs <- sd_probs
+ndf$probs <- probs
+ndf$var <- vars
+
+rc_avg_plot <- ggplot(ndf, aes(x = probs, y = norm_counts)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+rc_sd_plot <- ggplot(ndf, aes(x = probs, y = sd_probs)) + geom_point()
+  #geom_smooth(method = "lm")
+
+rc_mean_var <-ggplot(ndf, aes(x = norm_counts, y = var))+geom_point()
+
+
+#+geom_smooth(method="glm.nb", se=TRUE) +ggtitle("Negative binomial")
+```
+
+#Let's use sctransform package to fit negbinom, run vst, and output corrected count data for each tx
+```{r}
+library(sctransform)
+#get vst-transform-corrected isoform count data
+poop <- sctransform::vst(counts(tx_dds), method = "nb", return_cell_attr = TRUE) 
+new_poop <- correct(poop, do_pos=TRUE)
+non_na_poop <- replace(new_poop, is.na(new_poop), 0)
+```
+
+#cooking a spicy pre-fitted meatball
+```{r}
+isos <- vector()
+norm_counts <- vector()
+vars <- vector()
+
+probs <- vector()
+sd_probs <- vector()
+
+
+#only need to group by gene for gene-norm
+#for (gene in sample(unique(sorted[sorted$Transcript%in%rownames(new_poop),'Gene']), 100)){
+for (gene in genes){
+    #counts <- non_na_poop
+    
+    texas <- sorted[sorted$Gene == gene, 'Transcript']
+    options(rownames.force = FALSE)
+    
+    # Only consider cells that express at this locus
+    texas_counts <- new_poop[rownames(new_poop)%in%texas,]
+    options(rownames.force = TRUE)
+    
+    #if only one tx is expressed across all cells; no prob calculated (obviously)
+    #gene:isoform becomes 1:1
+    if (is.null(dim(texas_counts))){next}
+    sums <- colSums(texas_counts)
+    
+    cells <- names(sums[sums > 0])
+    subset <- as.matrix(new_poop[rownames(new_poop)%in%texas, cells])
+    
+    for (tx in rownames(subset)) {
+      isos <- append(isos,tx)
+      norm_avg <- mean(subset[tx,])
+      norm_counts <- append(norm_counts,norm_avg)
+      var <- var(subset[tx,])
+      vars <- append(vars,var)
+    # make prob matrix
+    for (cell in colnames(subset)) {
+      # get column total (total counts per gene)
+      total <- sum(subset[, cell])
+      if (total > 0) {
+          subset[tx, cell] <- as.numeric((subset[tx, cell]) / total) # perform gene-level normalization/rel abundance
+          if (total == 0) {
+            subset[tx, cell] <- 0
+          }
+        }
+    }
+          boop <- mean(subset[tx, ])
+          probs <- append(probs,boop)
+          boop_sd <- sd(subset[tx, ])
+          sd_probs <- append(sd_probs,boop_sd) 
+      
+    }
+}
+
+#avg per transcript visualization of heteroskedasticity of unfitted counts vs fitted
+df <- data.frame(norm_counts)
+rownames(df) <- isos
+df$probs <- probs
+df$sd_probs <- sd_probs
+df$var <- vars
+
+avg_plot <- ggplot(df, aes(x = probs, y = norm_counts)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+sd_plot <- ggplot(df, aes(x = probs, y = sd_probs)) + geom_point()
+  #geom_smooth(method = "lm")
+
+mean_var <-ggplot(df, aes(x = norm_counts, y = var))+geom_point()
+
+#vst transform is 100% doing its job (yay) and is especially helping for isoforms that have a middling probability values (from like .25-.75)--now the question is twofold: is there a relationship within each cell where cells with higher read counts have more isoforms assigned to certain values (like a more complex or sequenced cell might be producing more fractional isoform probabilities on average) and also is there a relationship between probability values and isoforms from more complex LOCI
+
+#isoform probability i feel like can be confounded by those two things^ so we need to explore that
+```
+
+#Iterate across each tx to compile a dataframe to look at global relationships between meta and probs
+```{r}
+#Set up obs x variables matrix (cells x meta)
+meow <- as.data.frame(exposure@meta.data)
+meow$cell <- rownames(meow)
+
+for (gene in genes){
+  
+    texas <- sorted[sorted$Gene == gene, 'Transcript']
+    options(rownames.force = FALSE)
+    
+    # Only consider cells that express at this locus
+    texas_counts <- new_poop[rownames(new_poop)%in%texas,]
+    options(rownames.force = TRUE)
+    
+    #if only one tx is expressed across all cells; no prob calculated (obviously)
+    #gene:isoform becomes 1:1
+    if (is.null(dim(texas_counts))){next}
+    sums <- colSums(texas_counts)
+    
+    #cells <- names(sums[sums > 0])
+    subset <- as.matrix(new_poop[rownames(new_poop)%in%texas,])
+  
+
+#make prob matrix
+for (tx in rownames(subset)){
+  prob_vector <- vector()    
+  for (cell in colnames(subset)){
+  #get column total (total counts per gene)
+  total <- sum(subset[,cell])
+  if (total>0){
+  prob_vector<- append(prob_vector,as.numeric((subset[tx,cell])/total))} #perform gene-level normalization/rel abundance
+  if (total == 0){
+    prob_vector <- append(prob_vector,NA)
+  }}
+  meow[`tx`] <- prob_vector
+}
+}
+
+#Gene complexity-- is there a relationship between gene complexity and avg transcript count vs prob?
+#length(sorted[sorted$Gene==gene,'Transcript'][[1]])
+```
+
+#Plot relationships
+```{r}
+#avg tx probability value per cell and ncount RNA per cell
+df <- data.frame(meow$nCount_RNA)
+rownames(df) <- rownames(meow)
+avg <- sapply(rownames(meow), function(cell) {
+  row_values <- meow[cell, 12:length(colnames(meow))] 
+  mean(row_values[!is.na(row_values)])
+})
+
+df$avg_prob <- avg
+
+#df$zscore_JSD <- zscores
+#df$nCount_RNA <- meow$nCount_RNA
+
+avg_plot <- ggplot(df, aes(x = meow.nCount_RNA, y = avg_prob)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+#cor(df$meow.nCount_RNA, df$avg_prob, method = 'spearman')
+
+#Let's see if there are different baseline JSD averages for sex
+df$sex <- meow$sex
+df$exposure <- meow$exposure
+df$age <- meow$age
+df$batch <- meow$batch
+sex_baseline <- boxplot(avg_prob ~ sex, data = df)
+exp_baseline <- boxplot(avg_prob ~ exposure, data = df)
+batch_baseline <- boxplot(avg_prob ~ batch, data = df)
+age_baseline <- boxplot(avg_prob ~ age, data = df)
+```
+
+#Plotting for figure 3/isoform supp stuff
+```{r}
+#tx-var vs prob plot (for showing vst transform effect on var)
+rc_sd_plot <- ggplot(ndf, aes(x = probs, y = sd_probs)) + geom_point()+theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ xlab('Isoform Probability') + ylab("Var") + ggtitle("Scaled")
+
+sd_plot <- ggplot(df, aes(x = probs, y = sd_probs)) + geom_point()+theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ xlab('Isoform Probability') + ylab("Var") + ggtitle("VST")
+
+
+```
+
+
+
+
+
+
+
+#linear modeling attempts with lme4
+#make the gumbo
+```{r}
+naughty_list <- vector()
+exp_genes <- vector()
+p_vals <- vector()
+estimates <- vector()
+for (gene in c('Syngap1')){
+  #if (gene %in% naughty_list) {next}
+  
+ possibleError <- tryCatch({
+    # Set up obs x variables matrix (cells x meta)
+    horses <- as.data.frame(exposure@meta.data)
+    horses$cell <- rownames(horses)
+    
+    texas <- sorted[sorted$Gene == gene, 'Transcript']
+    options(rownames.force = FALSE)
+    
+    # Only consider cells that express at this locus
+    texas_counts <- new_poop[rownames(new_poop)%in%texas,]
+    options(rownames.force = TRUE)
+    
+    #if only one tx is expressed across all cells; no prob calculated (obviously)
+    #gene:isoform becomes 1:1
+    if (is.null(dim(texas_counts))){next}
+    sums <- colSums(texas_counts)
+    
+    cells <- names(sums[sums > 0])
+    subset <- as.matrix(new_poop[rownames(new_poop)%in%texas, cells])
+    
+    for (tx in rownames(subset)) {
+    # make prob matrix
+    for (cell in colnames(subset)) {
+      # get column total (total counts per gene)
+      total <- sum(subset[, cell])
+      if (total > 0) {
+          subset[tx, cell] <- as.numeric((subset[tx, cell]) / total) # perform gene-level normalization/rel abundance
+          if (total == 0) {
+            subset[tx, cell] <- 0
+          }
+        }
+    }}
+    
+    cell_list <- colnames(subset)
+    if (length(cell_list) < 15) {
+      next
+    } # skip loci with too few observations
+    
+    for (isoform in texas) {
+      horses <- horses[cell_list, ]
+      horses$rat <- as.vector(subset[isoform, ])
+      horses$scaled <- scale(horses$nCount_RNA, center = FALSE)
+      
+      # model with lme4
+      model <- lmer(rat ~ exposure + scaled + (1|batch), data = horses)
+      
+      model_summary <- summary(model)
+      fixed_effects_p_values <- model_summary$coefficients[, "Pr(>|t|)"]
+      
+      for (i in seq(1, length(fixed_effects_p_values))) {
+        if (fixed_effects_p_values[i] < 1) {
+          exp_genes <- append(exp_genes, isoform)
+          p_vals <- append(p_vals, fixed_effects_p_values[[i]])
+          estimates <- append(estimates, model_summary$coefficients[, "Estimate"][[i]])
+        }
+      }
+    }
+  }, error = function(e) {
+    #cat("Error occurred for gene:", gene, "\n")
+    #naughty_list <- append(naughty_list, gene)
+  })
+ if(inherits(possibleError, "error")) next
+}
+
+meatball <- data.frame(exp_genes)
+meatball$raw_pval <- p_vals
+meatball$effect <- estimates
+
+gene_list <- vector()
+for (transcript in exp_genes) {
+  gene_list <- append(gene_list, sorted[sorted$Transcript == transcript, 'Gene'])
+}
+
+meatball$genes <- gene_list
+
+#saveRDS(meatball, file='/atium/Data/projects/sheridansinglecell/R2C2/Data/CA1/exposure_isoformrat.rds')
+#rm(meatball)
+```
+
+
+```{r}
+#Get stacked bar plot per cell clustered by isoform abundances for any input locus
+
+texas <- sorted[sorted$Gene=='Syngap1','Transcript']
+options(rownames.force = FALSE)
+#subset <- as.matrix(new_poop[rownames(new_poop)%in%texas,])
+subset <- as.matrix(counts[texas,])
+
+#make prob matrix
+keep_cells <- vector()
+for (cell in colnames(subset)){
+  #get column total (total counts per gene)
+  total <- sum(subset[,cell])
+  if (total>0){
+    keep_cells <- append(keep_cells,cell)
+  for (tx in texas){
+  subset[tx,cell]<- as.numeric((subset[tx,cell])/total)
+  } #perform gene-level normalization/rel abundance
+}}
+
+#just keep cells that express at all
+subset <- subset[,keep_cells]
+
+#Subset matrix
+exp_sub <- subset[, grepl('FC|UC', colnames(subset))]
+nc_sub <- subset[, grepl('NC', colnames(subset))]
+
+all_dat <- cbind(exp_sub,nc_sub)
+
+fa = rep(c("Exp", "Naive"), times = c(length(colnames(exp_sub)),length(colnames(nc_sub))))
+
+col_fun = colorRamp2(c(0, 1), c("white", "blue"))
+
+dend2 <- cluster_within_group(all_dat,fa) #within-group, samples are clustered by expression
+
+ht2 <- Heatmap(all_dat, column_labels = replicate(length(colnames(all_dat)),''), top_annotation = HeatmapAnnotation(foo = fa, col = list(foo = c("Exp"="orange","Naive"="blue"))), row_labels = replicate(length(rownames(all_dat)),''), show_row_dend=FALSE,use_raster=FALSE,col=col_fun,show_column_dend = FALSE,cluster_columns = dend2) 
+
+#Get clustered column order and reorder matrix
+ht2 <- draw(ht2)
+cell_order <- colnames(all_dat)[column_order(ht2)]
+subset <- subset[, cell_order]
+
+#Make stacked bar per cell
+#At least plot the avg dist for each condition
+horses <- as.data.frame(exposure@meta.data)
+horses$cell <- rownames(horses)
+
+#Organize data for stacked bar plotting
+Transcript <- rownames(subset)
+len <- length(Transcript)
+x1_list <- vector()
+values1 <- vector()
+for (cell in colnames(subset)){
+  x1_list <- append(x1_list,rep(`cell`, len))
+  values1 <- append(values1,subset[,cell])
+}
+
+bar_df <- data.frame(x1_list,Transcript)
+bar_df$values <- values1
+
+#plot
+library(viridis)
+bar_plot <- ggplot(bar_df, aes(fill=Transcript, y=values, x=factor(x1_list, level=cell_order))) + geom_bar(position='fill', stat="identity") + scale_fill_viridis(discrete='T', option='H') +theme_bw()+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+theme(panel.border = element_blank())+theme(axis.title.x = element_blank()) + ylab("")+ggtitle("Smg5")+theme(plot.title = element_text(hjust = -1, size=15)) + theme(axis.text.x = element_text(angle = 60, size=10, vjust=0.5))
+
+
+#yes it b working gud; just like the JSD analysis but way better because it straight
+#up returns the isoforms
+#i mean there's kind of not anything else to say about it
+```
