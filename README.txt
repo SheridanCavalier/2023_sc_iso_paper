@@ -33,26 +33,26 @@ And list the dependencies
 	C3POa uses splint alignment to determine subread boundaries on concatemeric R2C2 reads. 
 	Subreads are aligned and polished with Racon into resulting consensus reads. Use C3POa-multi.py for files > 5M reads. 
  
-	./C3POa.py -i input.fastq blahblab
+./C3POa.py -i input.fastq blahblab
 
 2. C3POa_postprocessing.py
 	Filters and orients consensus reads 5' to 3' via 10X adapter alignment.
 	Creates separate barcode/UMI file storing the last 28bp of each read.
 	This script can be used on any barcoded long reads with universal adapters if sequences are provided.
 
-	./C3POa_postprocessing.py -i 
+./C3POa_postprocessing.py -i 
 
 3. detBarcodes.py
 	Reads with an exact match to a barcode in the provided 10X whitelist are counted. 
 	Barcode shortlist is generated from barcodes with exact matches.
 	Typically 85+% of reads from postprocessing have exact matches. 
 
-	./detBarcodes.py -i
+./detBarcodes.py -i
 
 4. Demux_by_kmer.py
 	Reads without exact barcode matches are assigned to a barcode in the shortlist if L < 3. 
   
-	./Demux_by_kmer.py -i 
+./Demux_by_kmer.py -i 
 
 5. match_fastas.py
    #this needs to just be combined with demux nano (now make barcode files)as the first step
@@ -60,17 +60,17 @@ And list the dependencies
 5. make_barcode_files.py
 	Aggregates reads into fastq files by barcode and returns a list of barcodes with associated UMI counts (non collapsed).
 
-	/.make_barcode_files.py -i 
+/.make_barcode_files.py -i 
 
 6. MapAssignSort.py
 	Maps reads to reference genome. Reads are assigned to the genomic feature matching their primary alignment (FeatureCounts).
 	Reads in each barcode file are sorted by gene feature for quick UMI collapsing. 
 
-	./UMI_Collapse_2022/MapAssignSort.py -i
+./UMI_Collapse_2022/MapAssignSort.py -i
 
 7. UMI_Collapse.py
 	Reads with the same barcode that map to the same genomic feature are collapsed if UMIs L < 2.
 
-	./UMI_Collapse_2022/UMI_Collapse.py -i
+./UMI_Collapse_2022/UMI_Collapse.py -i
 
 8. UMIsBarcodes.py
