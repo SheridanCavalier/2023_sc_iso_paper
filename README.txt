@@ -63,4 +63,7 @@ And list the dependencies
 	/.make_barcode_files.py -i 
 
 6. MapAssignSort.py
-	Maps reads to reference genome
+	Maps reads to reference genome. Reads are assigned to the genomic feature matching their primary alignment (FeatureCounts).
+  Reads in each barcode file are sorted by gene feature for quick UMI collapsing. 
+
+	./UMI_Collapse
