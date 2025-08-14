@@ -73,4 +73,4 @@ And list the dependencies
 
 	./UMI_Collapse_2022/UMI_Collapse.py -i
 
-8. 
+8. UMIsBarcodes.py
