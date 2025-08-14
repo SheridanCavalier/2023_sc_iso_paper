@@ -54,7 +54,8 @@ And list the dependencies
   
 	./Demux_by_kmer.py -i 
 
-5. 
+5. match_fastas.py
+   #this needs to just be combined with demux nano as the first step
 
 
 4. 
