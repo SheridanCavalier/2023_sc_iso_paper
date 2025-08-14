@@ -39,3 +39,12 @@ And list the dependencies
 	Filters and orients consensus reads 5' to 3' via 10X adapter alignment.
 	Creates separate barcode/UMI file storing the last 28bp of each read.
 	This script can be used on any barcoded long reads with universal adapters if sequences are provided.
+
+	./C3POa_postprocessing.py -i 
+
+3. detBarcodes.py
+	Reads with an exact match to a barcode in the provided 10X whitelist are counted. 
+	Barcode shortlist is generated from barcodes with exact matches.
+	Typically 85+% of reads from postprocessing have exact matches. 
+
+4. 
