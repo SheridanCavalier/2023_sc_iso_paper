@@ -47,4 +47,14 @@ And list the dependencies
 	Barcode shortlist is generated from barcodes with exact matches.
 	Typically 85+% of reads from postprocessing have exact matches. 
 
+	./detBarcodes.py -i
+
+4. Demux_by_kmer.py
+	Reads without exact barcode matches are assigned to a barcode in the shortlist if L < 3. 
+  
+	./Demux_by_kmer.py -i 
+
+5. 
+
+
 4. 
