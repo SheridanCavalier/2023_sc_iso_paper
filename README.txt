@@ -58,3 +58,4 @@ And list the dependencies
    #this needs to just be combined with demux nano (now make barcode files)as the first step
 
 5. make_barcode_files.py
+	Aggregates reads into fastq files by barcode and returns a list of barcodes with associated UMI counts (non collapsed).
