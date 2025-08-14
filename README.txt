@@ -59,3 +59,8 @@ And list the dependencies
 
 5. make_barcode_files.py
 	Aggregates reads into fastq files by barcode and returns a list of barcodes with associated UMI counts (non collapsed).
+
+	/.make_barcode_files.py -i 
+
+6. MapAssignSort.py
+	Maps reads to reference genome
