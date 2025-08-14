@@ -66,4 +66,11 @@ And list the dependencies
 	Maps reads to reference genome. Reads are assigned to the genomic feature matching their primary alignment (FeatureCounts).
   Reads in each barcode file are sorted by gene feature for quick UMI collapsing. 
 
-	./UMI_Collapse
+	./UMI_Collapse_2022/MapAssignSort.py -i
+
+7. UMI_Collapse.py
+	Reads with the same barcode that map to the same genomic feature are collapsed if UMIs L < 2.
+
+	./UMI_Collapse_2022/UMI_Collapse.py -i
+
+8. 
