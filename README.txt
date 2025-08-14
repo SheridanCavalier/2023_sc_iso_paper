@@ -64,7 +64,7 @@ And list the dependencies
 
 6. MapAssignSort.py
 	Maps reads to reference genome. Reads are assigned to the genomic feature matching their primary alignment (FeatureCounts).
-  Reads in each barcode file are sorted by gene feature for quick UMI collapsing. 
+	Reads in each barcode file are sorted by gene feature for quick UMI collapsing. 
 
 	./UMI_Collapse_2022/MapAssignSort.py -i
 
