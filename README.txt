@@ -74,3 +74,5 @@ And list the dependencies
 ./UMI_Collapse_2022/UMI_Collapse.py -i
 
 8. UMIsBarcodes.py
+	Barcodes are ranked by number of UMIs. Barcodes with a UMI count at least 1/10 that of the barcode in the 99th percentile are considered cells.
+	An extra ten percent of targeted cells are included. 
