@@ -17,4 +17,9 @@
      Each read is assigned to a genomic feature with FeatureCounts based on its primary alignment.
 	7. Gene counts per barcode are formatted for Seurat into three files: 
      barcodes.tsv, features.tsv, and matrix.mtx
+ # GENERATING ISOFORM COUNT MATRIX
+	8. Reads within each barcode are mapped to the given reference transcriptome with Minimap2. 
+	9. Isoform quantification with Salmon is performed on resulting transcriptome alignment files. 
+  10. Integer count values (raw) reported by Salmon for each isoform are recorded for each barcode. 
+      Isoform counts per barcode are formatted for Seurat input. 
   
