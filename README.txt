@@ -76,3 +76,8 @@ And list the dependencies
 8. UMIsBarcodes.py
 	Barcodes are ranked by number of UMIs. Barcodes with a UMI count at least 1/10 that of the barcode in the 99th percentile are considered cells.
 	An extra ten percent of targeted cells are included. 
+#### need to integrate reorderBC.py into this 
+
+9. map_cells.py (formerly reFeatureCounts_for_countsmtx) ####integrate feature counts command into this!! 
+	Maps reads to reference genome and saves cell sam files in a directory for FeatureCounts.
+	Runs FeatureCounts on cell sam directory to generate file storing features per cell. 
