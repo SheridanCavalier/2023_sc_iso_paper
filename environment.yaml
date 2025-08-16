@@ -1,0 +1,19 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - snakemake-minimal >=8.4.4
+  - mappy
+  - numpy
+  - editdistance
+  - tqdm
+  - scipy
+  - pyabpoa
+  - minimap2
+  - subread
+  - salmon
+  - pip:
+    #  at the time of writing - 7. Feb 24 - pysam on bioconda will require
+    #  a lower python version than snakemake, install pysam
+    #  using pip
+    - pysam ==0.22
